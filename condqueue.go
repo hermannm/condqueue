@@ -27,10 +27,9 @@ func (queue *CondQueue[T]) AwaitMatchingItem(isMatch func(T) bool) (match T) {
 		remainingItems := make([]T, 0, cap(queue.items))
 
 		for _, item := range queue.items {
-			foundMatch = isMatch(item)
-
-			if foundMatch {
+			if !foundMatch && isMatch(item) {
 				match = item
+				foundMatch = true
 			} else {
 				remainingItems = append(remainingItems, item)
 			}
