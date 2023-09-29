@@ -101,6 +101,23 @@ func (queue *CondQueue[T]) AwaitMatchingItem(
 	}
 }
 
+// Clear removes all items from the queue.
+//
+// If ctx is canceled before the queue's lock is acquired, ctx.Err() is returned. If the context
+// never cancels, e.g. when using [context.Background], the error can safely be ignored.
+func (queue *CondQueue[T]) Clear(ctx context.Context) (cancelErr error) {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case queue.lock <- lock{}:
+	}
+
+	queue.items = nil
+
+	<-queue.lock
+	return nil
+}
+
 func (queue *CondQueue[T]) removeWaiter(waiter chan wake) {
 	remainingWaiters := make([]chan wake, 0, cap(queue.waiters))
 
