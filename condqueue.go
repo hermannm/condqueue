@@ -3,23 +3,27 @@ package condqueue
 import (
 	"context"
 	"slices"
-	"sync"
 )
 
 type CondQueue[T any] struct {
 	items   []T
-	lock    sync.Mutex
+	lock    chan lock
 	waiters []chan wake
 }
 
+type lock struct{}
 type wake struct{}
 
 func New[T any]() *CondQueue[T] {
-	return &CondQueue[T]{items: nil, lock: sync.Mutex{}, waiters: nil}
+	return &CondQueue[T]{items: nil, lock: make(chan lock, 1), waiters: nil}
 }
 
 func (queue *CondQueue[T]) AddItem(ctx context.Context, item T) (cancelErr error) {
-	queue.lock.Lock()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case queue.lock <- lock{}:
+	}
 
 	queue.items = append(queue.items, item)
 	for _, waiter := range queue.waiters {
@@ -32,7 +36,7 @@ func (queue *CondQueue[T]) AddItem(ctx context.Context, item T) (cancelErr error
 		}
 	}
 
-	queue.lock.Unlock()
+	<-queue.lock
 	return nil
 }
 
@@ -42,7 +46,12 @@ func (queue *CondQueue[T]) AwaitMatchingItem(
 ) (match T, cancelErr error) {
 	waiter := make(chan wake, 1)
 
-	queue.lock.Lock()
+	select {
+	case <-ctx.Done():
+		return match, ctx.Err()
+	case queue.lock <- lock{}:
+	}
+
 	queue.waiters = append(queue.waiters, waiter)
 
 	for {
@@ -53,21 +62,21 @@ func (queue *CondQueue[T]) AwaitMatchingItem(
 			if isMatch(item) {
 				queue.items = slices.Delete(queue.items, i, i+1)
 				queue.removeWaiter(waiter)
-				queue.lock.Unlock()
+				<-queue.lock
 				return item, nil
 			}
 		}
 
-		queue.lock.Unlock()
+		<-queue.lock
 
 		select {
 		case <-ctx.Done():
-			queue.lock.Lock()
+			queue.lock <- lock{}
 			queue.removeWaiter(waiter)
-			queue.lock.Unlock()
+			<-queue.lock
 			return match, ctx.Err()
 		case <-waiter:
-			queue.lock.Lock()
+			queue.lock <- lock{}
 		}
 	}
 }
