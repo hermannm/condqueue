@@ -123,6 +123,20 @@ func TestMultipleProducersMultipleConsumers(t *testing.T) {
 	}
 }
 
+func TestTimeout(t *testing.T) {
+	queue := condqueue.New[TestMessage]()
+
+	ctx, cleanup := context.WithTimeout(context.Background(), 10*time.Millisecond)
+
+	_, err := queue.AwaitMatchingItem(ctx, func(TestMessage) bool {
+		return true
+	})
+	cleanup()
+	if err == nil {
+		t.Fatal("expected timeout error from AwaitMatchingItem")
+	}
+}
+
 func TestClear(t *testing.T) {
 	queue := condqueue.New[TestMessage]()
 
@@ -138,12 +152,11 @@ func TestClear(t *testing.T) {
 	}
 
 	ctx, cleanup := context.WithTimeout(ctx, 100*time.Millisecond)
-	item, err := queue.AwaitMatchingItem(ctx, func(candidate TestMessage) bool {
+	_, err := queue.AwaitMatchingItem(ctx, func(candidate TestMessage) bool {
 		return candidate.Type == msgType
 	})
-	if err == nil {
-		t.Fatalf("expected Clear to error with timeout, but got item instead: %+v", item)
-	}
-
 	cleanup()
+	if err == nil {
+		t.Fatal("expected timeout error from Clear")
+	}
 }
