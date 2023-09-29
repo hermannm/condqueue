@@ -24,7 +24,10 @@ func (queue *CondQueue[T]) AddItem(item T) {
 func (queue *CondQueue[T]) AwaitMatchingItem(isMatch func(T) bool) (match T) {
 	queue.cond.L.Lock()
 	for {
-		for i, item := range queue.items {
+		// Iterates in reverse, to get the newest item first
+		for i := len(queue.items) - 1; i >= 0; i-- {
+			item := queue.items[i]
+
 			if isMatch(item) {
 				queue.items = slices.Delete(queue.items, i, i+1)
 				queue.cond.L.Unlock()
