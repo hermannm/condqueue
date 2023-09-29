@@ -2,6 +2,8 @@
 
 A small Go package providing a concurrent queue, on which consumers can wait for an item satisfying a given condition, and producers can add items to wake consumers.
 
+Run `go get hermannm.dev/condqueue` to add it to your project!
+
 ## Usage
 
 In the example below, we have a simple message, which can either be of type success or error. A producer goroutine adds messages to the queue, while two consumer goroutines wait for a message type each.
