@@ -1,5 +1,5 @@
-// Package condqueue provides a concurrent queue, on which consumers can wait for an item meeting a
-// given condition, and producers can add items to wake consumers.
+// Package condqueue provides a concurrent queue, on which consumers can wait for an item satisfying
+// a given condition, and producers can add items to wake consumers.
 package condqueue
 
 import (
