@@ -28,8 +28,6 @@ func (queue *CondQueue[T]) AddItem(ctx context.Context, item T) (cancelErr error
 	queue.items = append(queue.items, item)
 	for _, waiter := range queue.waiters {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
 		case waiter <- wake{}:
 		default:
 			// If channel is full: waiter is already awoken, do nothing
