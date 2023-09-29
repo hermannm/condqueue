@@ -1,6 +1,7 @@
 package condqueue
 
 import (
+	"slices"
 	"sync"
 )
 
@@ -23,22 +24,12 @@ func (queue *CondQueue[T]) AddItem(item T) {
 func (queue *CondQueue[T]) AwaitMatchingItem(isMatch func(T) bool) (match T) {
 	queue.cond.L.Lock()
 	for {
-		foundMatch := false
-		remainingItems := make([]T, 0, cap(queue.items))
-
-		for _, item := range queue.items {
-			if !foundMatch && isMatch(item) {
-				match = item
-				foundMatch = true
-			} else {
-				remainingItems = append(remainingItems, item)
+		for i, item := range queue.items {
+			if isMatch(item) {
+				queue.items = slices.Delete(queue.items, i, i+1)
+				queue.cond.L.Unlock()
+				return item
 			}
-		}
-
-		if foundMatch {
-			queue.items = remainingItems
-			queue.cond.L.Unlock()
-			return match
 		}
 
 		queue.cond.Wait()
