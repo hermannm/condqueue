@@ -14,15 +14,15 @@ import (
 // A CondQueue must be initialized with condqueue.New(), and must never be dereferenced.
 type CondQueue[T any] struct {
 	items   []T
-	lock    chan lock
+	lock    chan acquired
 	waiters []chan wake
 }
 
-type lock struct{}
+type acquired struct{}
 type wake struct{}
 
 func New[T any]() *CondQueue[T] {
-	return &CondQueue[T]{items: nil, lock: make(chan lock, 1), waiters: nil}
+	return &CondQueue[T]{items: nil, lock: make(chan acquired, 1), waiters: nil}
 }
 
 // AddItem adds the given item to the queue, and wakes all goroutines waiting on AwaitMatchingItem,
@@ -34,7 +34,7 @@ func (queue *CondQueue[T]) AddItem(ctx context.Context, item T) (cancelErr error
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case queue.lock <- lock{}:
+	case queue.lock <- acquired{}:
 	}
 
 	queue.items = append(queue.items, item)
@@ -69,7 +69,7 @@ func (queue *CondQueue[T]) AwaitMatchingItem(
 	select {
 	case <-ctx.Done():
 		return match, ctx.Err()
-	case queue.lock <- lock{}:
+	case queue.lock <- acquired{}:
 	}
 
 	queue.waiters = append(queue.waiters, waiter)
@@ -91,12 +91,12 @@ func (queue *CondQueue[T]) AwaitMatchingItem(
 
 		select {
 		case <-ctx.Done():
-			queue.lock <- lock{}
+			queue.lock <- acquired{}
 			queue.removeWaiter(waiter)
 			<-queue.lock
 			return match, ctx.Err()
 		case <-waiter:
-			queue.lock <- lock{}
+			queue.lock <- acquired{}
 		}
 	}
 }
@@ -109,7 +109,7 @@ func (queue *CondQueue[T]) Clear(ctx context.Context) (cancelErr error) {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case queue.lock <- lock{}:
+	case queue.lock <- acquired{}:
 	}
 
 	queue.items = nil
