@@ -13,7 +13,7 @@ import (
 // condition to arrive in the queue.
 // Producer goroutines can call [CondQueue.Add], which passes the item to a matching consumer.
 //
-// A CondQueue must be initialized with condqueue.New(), and must never be dereferenced.
+// A CondQueue must never be copied (initialize it with [New] to ensure this).
 type CondQueue[T any] struct {
 	consumers       []consumer[T]
 	unconsumedItems []T
@@ -28,6 +28,7 @@ type consumer[T any] struct {
 
 type cancel struct{}
 
+// New initializes a [CondQueue] for items of type T. It must never be copied.
 func New[T any]() *CondQueue[T] {
 	return &CondQueue[T]{}
 }
