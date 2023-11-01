@@ -14,9 +14,9 @@ import (
 //
 // A CondQueue must be initialized with condqueue.New(), and must never be dereferenced.
 type CondQueue2[T any] struct {
-	consumers      []consumer[T]
-	discardedItems []T
-	lock           sync.Mutex
+	consumers       []consumer[T]
+	unconsumedItems []T
+	lock            sync.Mutex
 }
 
 type consumer[T any] struct {
@@ -42,21 +42,28 @@ func (queue *CondQueue2[T]) AddItem(item T) {
 	remainingConsumers := queue.consumers[:0]
 
 	for _, consumer := range queue.consumers {
-		if consumer.isMatch(item) {
+		if !itemConsumed && consumer.isMatch(item) {
 			select {
 			case consumer.matchingItem <- item:
 				itemConsumed = true
 			case <-consumer.canceled:
+				// Continues loop without adding to remainingConsumers, so it is removed
+				continue
 			}
 		} else {
-			remainingConsumers = append(remainingConsumers, consumer)
+			select {
+			case <-consumer.canceled:
+				continue
+			default: // If we get here, the consumer was not canceled, i.e. should remain
+				remainingConsumers = append(remainingConsumers, consumer)
+			}
 		}
 	}
 
 	queue.consumers = remainingConsumers
 
 	if !itemConsumed {
-		queue.discardedItems = append(queue.discardedItems, item)
+		queue.unconsumedItems = append(queue.unconsumedItems, item)
 	}
 }
 
@@ -76,16 +83,16 @@ func (queue *CondQueue2[T]) AwaitMatchingItem(
 ) (matchingItem T, cancelErr error) {
 	queue.lock.Lock()
 
-	// First we check if a matching item is among previously discarded items
-	for i, item := range queue.discardedItems {
+	// First we check if a matching item is among previously unconsumed items
+	for i, item := range queue.unconsumedItems {
 		if isMatch(item) {
-			queue.discardedItems = slices.Delete(queue.discardedItems, i, i+1)
+			queue.unconsumedItems = slices.Delete(queue.unconsumedItems, i, i+1)
 			queue.lock.Unlock()
 			return item, nil
 		}
 	}
 
-	// Since we found no match among the discarded items, we create a consumer to wait for one
+	// Since we found no match among the unconsumed items, we create a consumer to wait for one
 	consumer := consumer[T]{
 		isMatch:      isMatch,
 		matchingItem: make(chan T, 1),
@@ -108,6 +115,6 @@ func (queue *CondQueue2[T]) AwaitMatchingItem(
 // Clear removes all items from the queue.
 func (queue *CondQueue2[T]) Clear() {
 	queue.lock.Lock()
-	queue.discardedItems = nil
+	queue.unconsumedItems = nil
 	queue.lock.Unlock()
 }
