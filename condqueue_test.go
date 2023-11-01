@@ -10,18 +10,6 @@ import (
 	"hermannm.dev/condqueue"
 )
 
-// Interface to test both old CondQueue and new CondQueue2
-type CondQueue[T any] interface {
-	Add(item T)
-
-	AwaitMatchingItem(
-		ctx context.Context,
-		isMatch func(item T) bool,
-	) (matchingItem T, cancelErr error)
-
-	Clear()
-}
-
 type testMessage struct {
 	Type string
 }
@@ -39,16 +27,6 @@ var testMessages = []testMessage{
 
 func TestSingleProducerMultipleConsumers(t *testing.T) {
 	queue := condqueue.New[testMessage]()
-	testSingleProducerMultipleConsumers(t, queue)
-}
-
-func TestCondQueue2SingleProducerMultipleConsumers(t *testing.T) {
-	queue := condqueue.New2[testMessage]()
-	testSingleProducerMultipleConsumers(t, queue)
-}
-
-func testSingleProducerMultipleConsumers(t *testing.T, queue CondQueue[testMessage]) {
-	t.Helper()
 
 	var errCount atomic.Int32
 	ctx, ctxCleanup := context.WithTimeout(context.Background(), time.Second)
@@ -94,16 +72,6 @@ func testSingleProducerMultipleConsumers(t *testing.T, queue CondQueue[testMessa
 
 func TestMultipleProducersMultipleConsumers(t *testing.T) {
 	queue := condqueue.New[testMessage]()
-	testMultipleProducersMultipleConsumers(t, queue)
-}
-
-func TestCondQueue2MultipleProducersMultipleConsumers(t *testing.T) {
-	queue := condqueue.New2[testMessage]()
-	testMultipleProducersMultipleConsumers(t, queue)
-}
-
-func testMultipleProducersMultipleConsumers(t *testing.T, queue CondQueue[testMessage]) {
-	t.Helper()
 
 	var errCount atomic.Int32
 	ctx, ctxCleanup := context.WithTimeout(context.Background(), time.Second)
@@ -151,16 +119,6 @@ func testMultipleProducersMultipleConsumers(t *testing.T, queue CondQueue[testMe
 
 func TestTimeout(t *testing.T) {
 	queue := condqueue.New[testMessage]()
-	testTimeout(t, queue)
-}
-
-func TestCondQueue2Timeout(t *testing.T) {
-	queue := condqueue.New2[testMessage]()
-	testTimeout(t, queue)
-}
-
-func testTimeout(t *testing.T, queue CondQueue[testMessage]) {
-	t.Helper()
 
 	ctx, cleanup := context.WithTimeout(context.Background(), 10*time.Millisecond)
 
@@ -175,16 +133,6 @@ func testTimeout(t *testing.T, queue CondQueue[testMessage]) {
 
 func TestClear(t *testing.T) {
 	queue := condqueue.New[testMessage]()
-	testClear(t, queue)
-}
-
-func TestCondQueue2Clear(t *testing.T) {
-	queue := condqueue.New2[testMessage]()
-	testClear(t, queue)
-}
-
-func testClear(t *testing.T, queue CondQueue[testMessage]) {
-	t.Helper()
 
 	const msgType = "success"
 
