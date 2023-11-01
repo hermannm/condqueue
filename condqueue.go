@@ -36,7 +36,7 @@ func New[T any]() *CondQueue[T] {
 // Add checks if the given item is a match for any consumers currently waiting on the queue.
 //
 // If a matching consumer is found, the consumer is woken and given the item, then removed from the
-// queue. The item is only given to a single consumer (older consumers prioritized), so any other
+// queue. The item is only given to a single consumer (prioritizing older consumers), so any other
 // matching consumers must wait for a later item.
 //
 // If no matching consumer is found, the item is stored so that future consumers may match on it.
@@ -83,14 +83,15 @@ func (queue *CondQueue[T]) Add(item T) {
 // therefore advised to use [context.WithTimeout] or similar.
 //
 // If multiple concurrent consumers may match on the same item, only one of them will receive the
-// item - i.e., every call to Add corresponds with one returned match from AwaitMatchingItem.
+// item - i.e., every call to [CondQueue.Add] corresponds with one returned match from
+// AwaitMatchingItem.
 func (queue *CondQueue[T]) AwaitMatchingItem(
 	ctx context.Context,
 	isMatch func(item T) bool,
 ) (matchingItem T, cancelErr error) {
 	queue.lock.Lock()
 
-	// First we check if a matching item is among previously unconsumed items
+	// First we check if a matching item is among the items discarded by previous consumers
 	for i, item := range queue.unconsumedItems {
 		if isMatch(item) {
 			queue.unconsumedItems = slices.Delete(queue.unconsumedItems, i, i+1)
