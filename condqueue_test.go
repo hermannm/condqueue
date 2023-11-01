@@ -22,11 +22,11 @@ type CondQueue[T any] interface {
 	Clear()
 }
 
-type TestMessage struct {
+type testMessage struct {
 	Type string
 }
 
-var testMessages = []TestMessage{
+var testMessages = []testMessage{
 	{Type: "success"},
 	{Type: "error"},
 	{Type: "timeout"},
@@ -38,16 +38,16 @@ var testMessages = []TestMessage{
 }
 
 func TestSingleProducerMultipleConsumers(t *testing.T) {
-	queue := condqueue.New[TestMessage]()
+	queue := condqueue.New[testMessage]()
 	testSingleProducerMultipleConsumers(t, queue)
 }
 
 func TestCondQueue2SingleProducerMultipleConsumers(t *testing.T) {
-	queue := condqueue.New2[TestMessage]()
+	queue := condqueue.New2[testMessage]()
 	testSingleProducerMultipleConsumers(t, queue)
 }
 
-func testSingleProducerMultipleConsumers(t *testing.T, queue CondQueue[TestMessage]) {
+func testSingleProducerMultipleConsumers(t *testing.T, queue CondQueue[testMessage]) {
 	t.Helper()
 
 	var errCount atomic.Int32
@@ -71,7 +71,7 @@ func testSingleProducerMultipleConsumers(t *testing.T, queue CondQueue[TestMessa
 
 		go func() {
 			t.Logf("[Consumer %d] Waiting for %+v", i, message)
-			receivedMessage, err := queue.AwaitMatchingItem(ctx, func(candidate TestMessage) bool {
+			receivedMessage, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
 				return candidate.Type == message.Type
 			})
 			if err == nil {
@@ -93,16 +93,16 @@ func testSingleProducerMultipleConsumers(t *testing.T, queue CondQueue[TestMessa
 }
 
 func TestMultipleProducersMultipleConsumers(t *testing.T) {
-	queue := condqueue.New[TestMessage]()
+	queue := condqueue.New[testMessage]()
 	testMultipleProducersMultipleConsumers(t, queue)
 }
 
 func TestCondQueue2MultipleProducersMultipleConsumers(t *testing.T) {
-	queue := condqueue.New2[TestMessage]()
+	queue := condqueue.New2[testMessage]()
 	testMultipleProducersMultipleConsumers(t, queue)
 }
 
-func testMultipleProducersMultipleConsumers(t *testing.T, queue CondQueue[TestMessage]) {
+func testMultipleProducersMultipleConsumers(t *testing.T, queue CondQueue[testMessage]) {
 	t.Helper()
 
 	var errCount atomic.Int32
@@ -128,7 +128,7 @@ func testMultipleProducersMultipleConsumers(t *testing.T, queue CondQueue[TestMe
 
 		go func() {
 			t.Logf("[Consumer %d] Waiting for %+v", i, message)
-			receivedMessage, err := queue.AwaitMatchingItem(ctx, func(candidate TestMessage) bool {
+			receivedMessage, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
 				return candidate.Type == message.Type
 			})
 			if err == nil {
@@ -150,21 +150,21 @@ func testMultipleProducersMultipleConsumers(t *testing.T, queue CondQueue[TestMe
 }
 
 func TestTimeout(t *testing.T) {
-	queue := condqueue.New[TestMessage]()
+	queue := condqueue.New[testMessage]()
 	testTimeout(t, queue)
 }
 
 func TestCondQueue2Timeout(t *testing.T) {
-	queue := condqueue.New2[TestMessage]()
+	queue := condqueue.New2[testMessage]()
 	testTimeout(t, queue)
 }
 
-func testTimeout(t *testing.T, queue CondQueue[TestMessage]) {
+func testTimeout(t *testing.T, queue CondQueue[testMessage]) {
 	t.Helper()
 
 	ctx, cleanup := context.WithTimeout(context.Background(), 10*time.Millisecond)
 
-	_, err := queue.AwaitMatchingItem(ctx, func(TestMessage) bool {
+	_, err := queue.AwaitMatchingItem(ctx, func(testMessage) bool {
 		return true
 	})
 	cleanup()
@@ -174,25 +174,25 @@ func testTimeout(t *testing.T, queue CondQueue[TestMessage]) {
 }
 
 func TestClear(t *testing.T) {
-	queue := condqueue.New[TestMessage]()
+	queue := condqueue.New[testMessage]()
 	testClear(t, queue)
 }
 
 func TestCondQueue2Clear(t *testing.T) {
-	queue := condqueue.New2[TestMessage]()
+	queue := condqueue.New2[testMessage]()
 	testClear(t, queue)
 }
 
-func testClear(t *testing.T, queue CondQueue[TestMessage]) {
+func testClear(t *testing.T, queue CondQueue[testMessage]) {
 	t.Helper()
 
 	const msgType = "success"
 
-	queue.AddItem(TestMessage{Type: msgType})
+	queue.AddItem(testMessage{Type: msgType})
 	queue.Clear()
 
 	ctx, cleanup := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	_, err := queue.AwaitMatchingItem(ctx, func(candidate TestMessage) bool {
+	_, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
 		return candidate.Type == msgType
 	})
 	cleanup()
