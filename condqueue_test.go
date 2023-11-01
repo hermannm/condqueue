@@ -25,6 +25,51 @@ var testMessages = []testMessage{
 	{Type: "error"},
 }
 
+func TestSingleProducerSingleConsumer(t *testing.T) {
+	queue := condqueue.New[testMessage]()
+
+	ctx, cleanup := context.WithTimeout(context.Background(), time.Second)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	const msgType = "test"
+
+	// Producer
+	go func() {
+		queue.Add(testMessage{Type: msgType})
+		t.Log("[producer] added message")
+		wg.Done()
+	}()
+
+	// Consumer
+	go func() {
+		t.Log("[consumer] waiting for message")
+
+		receivedMessage, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
+			return candidate.Type == msgType
+		})
+		if err == nil {
+			t.Log("[consumer] received message")
+		} else {
+			t.Errorf("error from AwaitMatchingItem: %v", err)
+		}
+
+		if receivedMessage.Type != msgType {
+			t.Errorf(
+				"expected received message to have type '%s', got %+v",
+				msgType,
+				receivedMessage,
+			)
+		}
+
+		wg.Done()
+	}()
+
+	wg.Wait()
+	cleanup()
+}
+
 func TestSingleProducerMultipleConsumers(t *testing.T) {
 	queue := condqueue.New[testMessage]()
 
