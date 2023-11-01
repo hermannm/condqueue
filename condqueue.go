@@ -1,5 +1,5 @@
 // Package condqueue provides a concurrent queue, on which consumers can wait for an item satisfying
-// a given condition.
+// a given condition, and producers can add items to wake consumers.
 package condqueue
 
 import (
@@ -75,8 +75,7 @@ func (queue *CondQueue[T]) Add(item T) {
 }
 
 // AwaitMatchingItem goes through unconsumed items in the queue, and returns an item where
-// isMatch(item) returns true. If no match is found there, it waits until given one from
-// [CondQueue.Add].
+// isMatch(item) returns true. If no match is found there, it waits until one arrives in the queue.
 //
 // If ctx is canceled before a match is found, ctx.Err() is returned. If the context never cancels,
 // e.g. when using [context.Background], the error can safely be ignored. If a matching item is

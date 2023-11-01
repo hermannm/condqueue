@@ -1,7 +1,7 @@
 # condqueue
 
 A small Go package providing a concurrent queue, on which consumers can wait for an item satisfying
-a given condition.
+a given condition, and producers can add items to wake consumers.
 
 Run `go get hermannm.dev/condqueue` to add it to your project!
 
