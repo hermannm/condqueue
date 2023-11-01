@@ -53,7 +53,7 @@ func TestSingleProducerSingleConsumer(t *testing.T) {
 
 		if err != nil {
 			t.Errorf("[consumer] [ERROR] timed out waiting for %v", expectedMsg)
-		} else if msg.Type != "test" {
+		} else if msg.Type != expectedMsg.Type {
 			t.Errorf("[consumer] [ERROR] expected %v, got %v", expectedMsg, msg)
 		} else {
 			t.Logf("[consumer] received %v", msg)
