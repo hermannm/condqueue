@@ -56,6 +56,7 @@ func testSingleProducerMultipleConsumers(t *testing.T, queue CondQueue[TestMessa
 	var wg sync.WaitGroup
 	wg.Add(len(testMessages) + 1)
 
+	// Producer
 	go func() {
 		for _, message := range testMessages {
 			queue.AddItem(message)
@@ -64,6 +65,7 @@ func testSingleProducerMultipleConsumers(t *testing.T, queue CondQueue[TestMessa
 		wg.Done()
 	}()
 
+	// Consumers
 	for i, message := range testMessages {
 		i, message := i, message // Avoids mutating loop variable
 
@@ -109,6 +111,7 @@ func testMultipleProducersMultipleConsumers(t *testing.T, queue CondQueue[TestMe
 	var wg sync.WaitGroup
 	wg.Add(len(testMessages) * 2)
 
+	// Producers
 	for i, message := range testMessages {
 		i, message := i, message // Avoids mutating loop variable
 
@@ -119,6 +122,7 @@ func testMultipleProducersMultipleConsumers(t *testing.T, queue CondQueue[TestMe
 		}()
 	}
 
+	// Consumers
 	for i, message := range testMessages {
 		i, message := i, message // Avoids mutating loop variable
 
