@@ -1,12 +1,15 @@
 # condqueue
 
-A small Go package providing a concurrent queue, on which consumers can wait for an item satisfying a given condition, and producers can add items to wake consumers.
+A small Go package providing a concurrent queue, on which consumers can wait for an item satisfying
+a given condition.
 
 Run `go get hermannm.dev/condqueue` to add it to your project!
 
 ## Usage
 
-In the example below, we have a simple message, which can either be of type success or error. A producer goroutine adds messages to the queue, while two consumer goroutines wait for a message type each.
+In the example below, we have a simple message, which can either be of type success or error. A
+producer goroutine adds messages to the queue, while two consumer goroutines wait for a message type
+each.
 
 ```go
 import (
@@ -24,7 +27,6 @@ type Message struct {
 
 func main() {
 	queue := condqueue.New[Message]()
-	ctx := context.Background()
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -32,10 +34,10 @@ func main() {
 	// Producer
 	go func() {
 		fmt.Println("[Producer] Adding success message...")
-		queue.AddItem(ctx, Message{Type: "success", Content: "Great success!"})
+		queue.Add(Message{Type: "success", Content: "Great success!"})
 
 		fmt.Println("[Producer] Adding error message...")
-		queue.AddItem(ctx, Message{Type: "error", Content: "I've made a huge mistake"})
+		queue.Add(Message{Type: "error", Content: "I've made a huge mistake"})
 
 		wg.Done()
 	}()
@@ -44,7 +46,7 @@ func main() {
 	go func() {
 		fmt.Println("[Consumer 1] Waiting for success...")
 
-		msg, _ := queue.AwaitMatchingItem(ctx, func(candidate Message) bool {
+		msg, _ := queue.AwaitMatchingItem(context.Background(), func(candidate Message) bool {
 			return candidate.Type == "success"
 		})
 
@@ -56,7 +58,7 @@ func main() {
 	go func() {
 		fmt.Println("[Consumer 2] Waiting for errors...")
 
-		msg, _ := queue.AwaitMatchingItem(ctx, func(candidate Message) bool {
+		msg, _ := queue.AwaitMatchingItem(context.Background(), func(candidate Message) bool {
 			return candidate.Type == "error"
 		})
 
@@ -79,4 +81,5 @@ This gives the following output (the order may vary due to concurrency):
 [Consumer 1] Received success message: Great success!
 ```
 
-For more details on how to use `condqueue`, refer to the [documentation](https://pkg.go.dev/hermannm.dev/condqueue).
+For more details on how to use `condqueue`, refer to the
+[documentation](https://pkg.go.dev/hermannm.dev/condqueue).
