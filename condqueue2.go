@@ -1,5 +1,5 @@
 // Package condqueue provides a concurrent queue, on which consumers can wait for an item satisfying
-// a given condition, and producers can add items to wake consumers.
+// a given condition.
 package condqueue
 
 import (
@@ -10,7 +10,7 @@ import (
 
 // CondQueue is a concurrent queue of items of type T. Consumer goroutines can call
 // AwaitMatchingItem to wait for an item matching a given condition to arrive in the queue. Producer
-// goroutines can call AddItem, which wakes any waiting consumers.
+// goroutines can call AddItem, which passes the item to a matching consumer.
 //
 // A CondQueue must be initialized with condqueue.New(), and must never be dereferenced.
 type CondQueue2[T any] struct {
@@ -31,8 +31,13 @@ func New2[T any]() *CondQueue2[T] {
 	return &CondQueue2[T]{}
 }
 
-// AddItem adds the given item to the queue, and wakes all goroutines waiting on AwaitMatchingItem,
-// so they may see if the new item is a match.
+// AddItem checks if the given item is a match for any consumers currently waiting on the queue.
+//
+// If a matching consumer is found, the consumer is woken and given the item, then removed from the
+// queue. The item is only given to a single consumer (older consumers prioritized), so any other
+// matching consumers must wait for a later item.
+//
+// If no matching consumer is found, the item is stored so that future consumers may match on it.
 func (queue *CondQueue2[T]) AddItem(item T) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
@@ -67,8 +72,9 @@ func (queue *CondQueue2[T]) AddItem(item T) {
 	}
 }
 
-// AwaitMatchingItem goes through the items in the queue, and returns an item where isMatch(item)
-// returns true. If no matching item is already in the queue, it waits until a match arrives.
+// AwaitMatchingItem goes through unconsumed items in the queue, and returns an item where
+// isMatch(item) returns true. If no match is found there, it waits until given a match from
+// [CondQueue.AddItem].
 //
 // If ctx is canceled before a match is found, ctx.Err() is returned. If the context never cancels,
 // e.g. when using [context.Background], the error can safely be ignored. If a matching item is
@@ -112,7 +118,7 @@ func (queue *CondQueue2[T]) AwaitMatchingItem(
 	}
 }
 
-// Clear removes all items from the queue.
+// Clear removes all unconsumed items from the queue.
 func (queue *CondQueue2[T]) Clear() {
 	queue.lock.Lock()
 	queue.unconsumedItems = nil
