@@ -36,13 +36,8 @@ func TestSingleProducerMultipleConsumers(t *testing.T) {
 
 	go func() {
 		for _, message := range testMessages {
-			err := queue.AddItem(ctx, message)
-			if err == nil {
-				t.Logf("[Producer] Added %+v", message)
-			} else {
-				t.Logf("[Producer] AddItem error: %v", err)
-				errCount.Add(1)
-			}
+			queue.AddItem(message)
+			t.Logf("[Producer] Added %+v", message)
 		}
 		wg.Done()
 	}()
@@ -86,13 +81,8 @@ func TestMultipleProducersMultipleConsumers(t *testing.T) {
 		i, message := i, message // Avoids mutating loop variable
 
 		go func() {
-			err := queue.AddItem(ctx, message)
-			if err == nil {
-				t.Logf("[Producer %d] Added %+v", i, message)
-			} else {
-				t.Logf("[Producer %d] AddItem error: %v", i, err)
-				errCount.Add(1)
-			}
+			queue.AddItem(message)
+			t.Logf("[Producer %d] Added %+v", i, message)
 			wg.Done()
 		}()
 	}
@@ -142,16 +132,10 @@ func TestClear(t *testing.T) {
 
 	const msgType = "success"
 
-	ctx := context.Background()
-	if err := queue.AddItem(ctx, TestMessage{Type: msgType}); err != nil {
-		t.Fatalf("unexpected AddItem error: %v", err)
-	}
+	queue.AddItem(TestMessage{Type: msgType})
+	queue.Clear()
 
-	if err := queue.Clear(ctx); err != nil {
-		t.Fatalf("unexpected Clear error: %v", err)
-	}
-
-	ctx, cleanup := context.WithTimeout(ctx, 100*time.Millisecond)
+	ctx, cleanup := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	_, err := queue.AwaitMatchingItem(ctx, func(candidate TestMessage) bool {
 		return candidate.Type == msgType
 	})

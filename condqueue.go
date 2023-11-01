@@ -5,6 +5,7 @@ package condqueue
 import (
 	"context"
 	"slices"
+	"sync"
 )
 
 // CondQueue is a concurrent queue of items of type T. Consumer goroutines can call
@@ -14,28 +15,21 @@ import (
 // A CondQueue must be initialized with condqueue.New(), and must never be dereferenced.
 type CondQueue[T any] struct {
 	items   []T
-	lock    chan acquired
+	lock    sync.Mutex
 	waiters []chan wake
 }
 
-type acquired struct{}
 type wake struct{}
 
 func New[T any]() *CondQueue[T] {
-	return &CondQueue[T]{items: nil, lock: make(chan acquired, 1), waiters: nil}
+	return &CondQueue[T]{items: nil, lock: sync.Mutex{}, waiters: nil}
 }
 
 // AddItem adds the given item to the queue, and wakes all goroutines waiting on AwaitMatchingItem,
 // so they may see if the new item is a match.
-//
-// If ctx is canceled before the queue's lock is acquired, ctx.Err() is returned. If the context
-// never cancels, e.g. when using [context.Background], the error can safely be ignored.
-func (queue *CondQueue[T]) AddItem(ctx context.Context, item T) (cancelErr error) {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case queue.lock <- acquired{}:
-	}
+func (queue *CondQueue[T]) AddItem(item T) {
+	queue.lock.Lock()
+	defer queue.lock.Unlock()
 
 	queue.items = append(queue.items, item)
 	for _, waiter := range queue.waiters {
@@ -45,9 +39,6 @@ func (queue *CondQueue[T]) AddItem(ctx context.Context, item T) (cancelErr error
 			// If channel is full: waiter is already awoken, do nothing
 		}
 	}
-
-	<-queue.lock
-	return nil
 }
 
 // AwaitMatchingItem goes through the items in the queue, and returns an item where isMatch(item)
@@ -62,16 +53,10 @@ func (queue *CondQueue[T]) AddItem(ctx context.Context, item T) (cancelErr error
 // item - i.e., every call to AddItem corresponds with one returned match from AwaitMatchingItem.
 func (queue *CondQueue[T]) AwaitMatchingItem(
 	ctx context.Context,
-	isMatch func(T) bool,
-) (match T, cancelErr error) {
+	isMatch func(item T) bool,
+) (matchingItem T, cancelErr error) {
 	waiter := make(chan wake, 1)
-
-	select {
-	case <-ctx.Done():
-		return match, ctx.Err()
-	case queue.lock <- acquired{}:
-	}
-
+	queue.lock.Lock()
 	queue.waiters = append(queue.waiters, waiter)
 
 	for {
@@ -82,50 +67,37 @@ func (queue *CondQueue[T]) AwaitMatchingItem(
 			if isMatch(item) {
 				queue.items = slices.Delete(queue.items, i, i+1)
 				queue.removeWaiter(waiter)
-				<-queue.lock
+				queue.lock.Unlock()
 				return item, nil
 			}
 		}
 
-		<-queue.lock
+		queue.lock.Unlock()
 
 		select {
 		case <-ctx.Done():
-			queue.lock <- acquired{}
+			queue.lock.Lock()
 			queue.removeWaiter(waiter)
-			<-queue.lock
-			return match, ctx.Err()
+			queue.lock.Unlock()
+			return matchingItem, ctx.Err()
 		case <-waiter:
-			queue.lock <- acquired{}
+			queue.lock.Lock()
 		}
 	}
 }
 
 // Clear removes all items from the queue.
-//
-// If ctx is canceled before the queue's lock is acquired, ctx.Err() is returned. If the context
-// never cancels, e.g. when using [context.Background], the error can safely be ignored.
-func (queue *CondQueue[T]) Clear(ctx context.Context) (cancelErr error) {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case queue.lock <- acquired{}:
-	}
-
+func (queue *CondQueue[T]) Clear() {
+	queue.lock.Lock()
 	queue.items = nil
-
-	<-queue.lock
-	return nil
+	queue.lock.Unlock()
 }
 
 func (queue *CondQueue[T]) removeWaiter(waiter chan wake) {
-	remainingWaiters := make([]chan wake, 0, cap(queue.waiters))
-
-	for _, previousWaiter := range queue.waiters {
-		if previousWaiter != waiter {
-			remainingWaiters = append(remainingWaiters, previousWaiter)
+	for i, candidate := range queue.waiters {
+		if waiter == candidate {
+			queue.waiters = slices.Delete(queue.waiters, i, i+1)
+			return
 		}
 	}
-
-	queue.waiters = remainingWaiters
 }
