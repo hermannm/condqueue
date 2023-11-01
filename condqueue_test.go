@@ -2,8 +2,8 @@ package condqueue_test
 
 import (
 	"context"
+	"fmt"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,167 +29,168 @@ func TestSingleProducerSingleConsumer(t *testing.T) {
 	queue := condqueue.New[testMessage]()
 
 	ctx, cleanup := context.WithTimeout(context.Background(), time.Second)
+	defer cleanup()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	const msgType = "test"
+	expectedMsg := testMessage{Type: "test"}
 
 	// Producer
 	go func() {
-		queue.Add(testMessage{Type: msgType})
-		t.Log("[producer] added message")
+		t.Logf("[producer] adding %v", expectedMsg)
+		queue.Add(expectedMsg)
 		wg.Done()
 	}()
 
 	// Consumer
 	go func() {
-		t.Log("[consumer] waiting for message")
+		t.Logf("[consumer] waiting for %v", expectedMsg)
 
-		receivedMessage, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
-			return candidate.Type == msgType
+		msg, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
+			return candidate.Type == expectedMsg.Type
 		})
-		if err == nil {
-			t.Log("[consumer] received message")
-		} else {
-			t.Errorf("error from AwaitMatchingItem: %v", err)
-		}
 
-		if receivedMessage.Type != msgType {
-			t.Errorf(
-				"expected received message to have type '%s', got %+v",
-				msgType,
-				receivedMessage,
-			)
+		if err != nil {
+			t.Errorf("[consumer] [ERROR] timed out waiting for %v", expectedMsg)
+		} else if msg.Type != "test" {
+			t.Errorf("[consumer] [ERROR] expected %v, got %v", expectedMsg, msg)
+		} else {
+			t.Logf("[consumer] received %v", msg)
 		}
 
 		wg.Done()
 	}()
 
 	wg.Wait()
-	cleanup()
 }
 
 func TestSingleProducerMultipleConsumers(t *testing.T) {
 	queue := condqueue.New[testMessage]()
 
-	var errCount atomic.Int32
-	ctx, ctxCleanup := context.WithTimeout(context.Background(), time.Second)
+	ctx, cleanup := context.WithTimeout(context.Background(), time.Second)
+	defer cleanup()
 
 	var wg sync.WaitGroup
 	wg.Add(len(testMessages) + 1)
 
 	// Producer
 	go func() {
-		for _, message := range testMessages {
-			queue.Add(message)
-			t.Logf("[Producer] Added %+v", message)
+		for _, msg := range testMessages {
+			t.Logf("[producer] adding %v", msg)
+			queue.Add(msg)
 		}
+
 		wg.Done()
 	}()
 
 	// Consumers
-	for i, message := range testMessages {
-		i, message := i, message // Avoids mutating loop variable
+	for i, expectedMsg := range testMessages {
+		i, expectedMsg := i, expectedMsg // Avoids mutating loop variable
 
 		go func() {
-			t.Logf("[Consumer %d] Waiting for %+v", i, message)
-			receivedMessage, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
-				return candidate.Type == message.Type
+			t.Logf("[consumer %d] waiting for %v", i, expectedMsg)
+
+			msg, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
+				return candidate.Type == expectedMsg.Type
 			})
-			if err == nil {
-				t.Logf("[Consumer %d] Received %+v", i, receivedMessage)
+
+			if err != nil {
+				t.Errorf("[consumer %d] [ERROR] timed out waiting for %v", i, expectedMsg)
+			} else if msg.Type != expectedMsg.Type {
+				t.Errorf("[consumer %d] [ERROR] expected %v, got %v", i, expectedMsg, msg)
 			} else {
-				t.Logf("[Consumer %d] Received error: %v", i, err)
-				errCount.Add(1)
+				t.Logf("[consumer %d] received %v", i, msg)
 			}
+
 			wg.Done()
 		}()
 	}
 
 	wg.Wait()
-	ctxCleanup()
-
-	if errCount.Load() != 0 {
-		t.Fatal("non-zero error count (run tests with -v to see errors)")
-	}
 }
 
 func TestMultipleProducersMultipleConsumers(t *testing.T) {
 	queue := condqueue.New[testMessage]()
 
-	var errCount atomic.Int32
-	ctx, ctxCleanup := context.WithTimeout(context.Background(), time.Second)
+	ctx, cleanup := context.WithTimeout(context.Background(), time.Second)
+	defer cleanup()
 
 	var wg sync.WaitGroup
 	wg.Add(len(testMessages) * 2)
 
 	// Producers
-	for i, message := range testMessages {
-		i, message := i, message // Avoids mutating loop variable
+	for i, msg := range testMessages {
+		i, msg := i, msg // Avoids mutating loop variable
 
 		go func() {
-			queue.Add(message)
-			t.Logf("[Producer %d] Added %+v", i, message)
+			t.Logf("[producer %d] adding %v", i, msg)
+			queue.Add(msg)
 			wg.Done()
 		}()
 	}
 
 	// Consumers
-	for i, message := range testMessages {
-		i, message := i, message // Avoids mutating loop variable
+	for i, expectedMsg := range testMessages {
+		i, expectedMsg := i, expectedMsg // Avoids mutating loop variable
 
 		go func() {
-			t.Logf("[Consumer %d] Waiting for %+v", i, message)
-			receivedMessage, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
-				return candidate.Type == message.Type
+			t.Logf("[consumer %d] waiting for %v", i, expectedMsg)
+
+			msg, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
+				return candidate.Type == expectedMsg.Type
 			})
-			if err == nil {
-				t.Logf("[Consumer %d] Received %+v", i, receivedMessage)
+
+			if err != nil {
+				t.Errorf("[consumer %d] [ERROR] timed out waiting for %v", i, expectedMsg)
+			} else if msg.Type != expectedMsg.Type {
+				t.Errorf("[consumer %d] [ERROR] expected %v, got %v", i, expectedMsg, msg)
 			} else {
-				t.Logf("[Consumer %d] Received error: %v", i, err)
-				errCount.Add(1)
+				t.Logf("[consumer %d] received %v", i, msg)
 			}
+
 			wg.Done()
 		}()
 	}
 
 	wg.Wait()
-	ctxCleanup()
-
-	if errCount.Load() != 0 {
-		t.Fatal("non-zero error count (run tests with -v to see errors)")
-	}
 }
 
 func TestTimeout(t *testing.T) {
 	queue := condqueue.New[testMessage]()
 
 	ctx, cleanup := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cleanup()
 
 	_, err := queue.AwaitMatchingItem(ctx, func(testMessage) bool {
 		return true
 	})
-	cleanup()
+
 	if err == nil {
-		t.Fatal("expected timeout error from AwaitMatchingItem")
+		t.Error("expected timeout error from AwaitMatchingItem")
 	}
 }
 
 func TestClear(t *testing.T) {
 	queue := condqueue.New[testMessage]()
 
-	const msgType = "success"
+	const msgType = "test"
 
 	queue.Add(testMessage{Type: msgType})
 	queue.Clear()
 
 	ctx, cleanup := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cleanup()
+
 	_, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
 		return candidate.Type == msgType
 	})
-	cleanup()
+
 	if err == nil {
-		t.Fatal("expected timeout error from Clear")
+		t.Error("expected timeout error from AwaitMatchingItem")
 	}
+}
+
+func (msg testMessage) String() string {
+	return fmt.Sprintf("'%s' message", msg.Type)
 }
