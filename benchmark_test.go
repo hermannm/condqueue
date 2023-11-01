@@ -53,7 +53,7 @@ func benchmarkSingleProducerMultipleConsumers(
 		// Producer
 		go func() {
 			for _, message := range testMessages {
-				queue.AddItem(message)
+				queue.Add(message)
 			}
 			wg.Done()
 		}()
@@ -110,7 +110,7 @@ func benchmarkMultipleProducersMultipleConsumers(
 			message := message // Avoids mutating loop variable
 
 			go func() {
-				queue.AddItem(message)
+				queue.Add(message)
 				wg.Done()
 			}()
 		}

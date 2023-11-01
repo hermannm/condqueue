@@ -9,8 +9,8 @@ import (
 )
 
 // CondQueue is a concurrent queue of items of type T. Consumer goroutines can call
-// AwaitMatchingItem to wait for an item matching a given condition to arrive in the queue. Producer
-// goroutines can call AddItem, which wakes any waiting consumers.
+// [CondQueue.AwaitMatchingItem] to wait for an item matching a given condition to arrive in the queue.
+// Producer goroutines can call [CondQueue.Add], which wakes any waiting consumers.
 //
 // A CondQueue must be initialized with condqueue.New(), and must never be dereferenced.
 type CondQueue[T any] struct {
@@ -25,9 +25,9 @@ func New[T any]() *CondQueue[T] {
 	return &CondQueue[T]{items: nil, lock: sync.Mutex{}, waiters: nil}
 }
 
-// AddItem adds the given item to the queue, and wakes all goroutines waiting on AwaitMatchingItem,
+// Add adds the given item to the queue, and wakes all goroutines waiting on [CondQueue.AwaitMatchingItem],
 // so they may see if the new item is a match.
-func (queue *CondQueue[T]) AddItem(item T) {
+func (queue *CondQueue[T]) Add(item T) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 
@@ -50,7 +50,7 @@ func (queue *CondQueue[T]) AddItem(item T) {
 // therefore advised to use [context.WithTimeout] or similar.
 //
 // If multiple goroutines calling this may match on the same item, only one of them will receive the
-// item - i.e., every call to AddItem corresponds with one returned match from AwaitMatchingItem.
+// item - i.e., every call to Add corresponds with one returned match from AwaitMatchingItem.
 func (queue *CondQueue[T]) AwaitMatchingItem(
 	ctx context.Context,
 	isMatch func(item T) bool,

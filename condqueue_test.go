@@ -12,7 +12,7 @@ import (
 
 // Interface to test both old CondQueue and new CondQueue2
 type CondQueue[T any] interface {
-	AddItem(item T)
+	Add(item T)
 
 	AwaitMatchingItem(
 		ctx context.Context,
@@ -59,7 +59,7 @@ func testSingleProducerMultipleConsumers(t *testing.T, queue CondQueue[testMessa
 	// Producer
 	go func() {
 		for _, message := range testMessages {
-			queue.AddItem(message)
+			queue.Add(message)
 			t.Logf("[Producer] Added %+v", message)
 		}
 		wg.Done()
@@ -116,7 +116,7 @@ func testMultipleProducersMultipleConsumers(t *testing.T, queue CondQueue[testMe
 		i, message := i, message // Avoids mutating loop variable
 
 		go func() {
-			queue.AddItem(message)
+			queue.Add(message)
 			t.Logf("[Producer %d] Added %+v", i, message)
 			wg.Done()
 		}()
@@ -188,7 +188,7 @@ func testClear(t *testing.T, queue CondQueue[testMessage]) {
 
 	const msgType = "success"
 
-	queue.AddItem(testMessage{Type: msgType})
+	queue.Add(testMessage{Type: msgType})
 	queue.Clear()
 
 	ctx, cleanup := context.WithTimeout(context.Background(), 100*time.Millisecond)

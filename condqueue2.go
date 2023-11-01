@@ -8,9 +8,10 @@ import (
 	"sync"
 )
 
-// CondQueue is a concurrent queue of items of type T. Consumer goroutines can call
-// AwaitMatchingItem to wait for an item matching a given condition to arrive in the queue. Producer
-// goroutines can call AddItem, which passes the item to a matching consumer.
+// CondQueue is a concurrent queue of items of type T.
+// Consumer goroutines can call [CondQueue.AwaitMatchingItem] to wait for an item matching a given
+// condition to arrive in the queue.
+// Producer goroutines can call [CondQueue.Add], which passes the item to a matching consumer.
 //
 // A CondQueue must be initialized with condqueue.New(), and must never be dereferenced.
 type CondQueue2[T any] struct {
@@ -31,14 +32,14 @@ func New2[T any]() *CondQueue2[T] {
 	return &CondQueue2[T]{}
 }
 
-// AddItem checks if the given item is a match for any consumers currently waiting on the queue.
+// Add checks if the given item is a match for any consumers currently waiting on the queue.
 //
 // If a matching consumer is found, the consumer is woken and given the item, then removed from the
 // queue. The item is only given to a single consumer (older consumers prioritized), so any other
 // matching consumers must wait for a later item.
 //
 // If no matching consumer is found, the item is stored so that future consumers may match on it.
-func (queue *CondQueue2[T]) AddItem(item T) {
+func (queue *CondQueue2[T]) Add(item T) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 
@@ -73,16 +74,16 @@ func (queue *CondQueue2[T]) AddItem(item T) {
 }
 
 // AwaitMatchingItem goes through unconsumed items in the queue, and returns an item where
-// isMatch(item) returns true. If no match is found there, it waits until given a match from
-// [CondQueue.AddItem].
+// isMatch(item) returns true. If no match is found there, it waits until given one from
+// [CondQueue.Add].
 //
 // If ctx is canceled before a match is found, ctx.Err() is returned. If the context never cancels,
 // e.g. when using [context.Background], the error can safely be ignored. If a matching item is
 // never received, and the context never cancels, this may halt the calling goroutine forever. It is
 // therefore advised to use [context.WithTimeout] or similar.
 //
-// If multiple goroutines calling this may match on the same item, only one of them will receive the
-// item - i.e., every call to AddItem corresponds with one returned match from AwaitMatchingItem.
+// If multiple concurrent consumers may match on the same item, only one of them will receive the
+// item - i.e., every call to Add corresponds with one returned match from AwaitMatchingItem.
 func (queue *CondQueue2[T]) AwaitMatchingItem(
 	ctx context.Context,
 	isMatch func(item T) bool,
