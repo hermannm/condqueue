@@ -2,6 +2,7 @@ package condqueue_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -168,6 +169,26 @@ func TestTimeout(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected timeout error from AwaitMatchingItem")
+	}
+}
+
+func TestCancel(t *testing.T) {
+	queue := condqueue.New[testMessage]()
+
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cancelErr := errors.New("something went wrong")
+	cancel(cancelErr)
+
+	_, err := queue.AwaitMatchingItem(ctx, func(testMessage) bool {
+		return true
+	})
+
+	if err == nil {
+		t.Fatal("expected error from AwaitMatchingItem with canceled context")
+	}
+
+	if err != cancelErr {
+		t.Fatalf("expected error to match the one given to cancel function, but got: %v", err)
 	}
 }
 
