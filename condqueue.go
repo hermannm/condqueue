@@ -77,10 +77,11 @@ func (queue *CondQueue[T]) Add(item T) {
 // AwaitMatchingItem goes through unconsumed items in the queue, and returns an item where
 // isMatch(item) returns true. If no match is found there, it waits until one arrives in the queue.
 //
-// If ctx is canceled before a match is found, ctx.Err() is returned. If the context never cancels,
-// e.g. when using [context.Background], the error can safely be ignored. If a matching item is
-// never received, and the context never cancels, this may halt the calling goroutine forever. It is
-// therefore advised to use [context.WithTimeout] or similar.
+// If ctx is canceled before a match is found, the context's error is returned by calling
+// [context.Cause] on it. If the context never cancels, e.g. when using [context.Background], the
+// error can safely be ignored. If a matching item is never received, and the context never cancels,
+// this may halt the calling goroutine forever. It is therefore advised to use [context.WithTimeout]
+// or similar.
 //
 // If multiple concurrent consumers may match on the same item, only one of them will receive the
 // item - i.e., every call to [CondQueue.Add] corresponds with one returned match from
@@ -116,7 +117,7 @@ func (queue *CondQueue[T]) AwaitMatchingItem(
 	case <-ctx.Done():
 		consumer.canceled <- cancel{}
 		var zero T
-		return zero, ctx.Err()
+		return zero, context.Cause(ctx)
 	}
 }
 
