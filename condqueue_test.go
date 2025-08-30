@@ -48,9 +48,11 @@ func TestSingleProducerSingleConsumer(t *testing.T) {
 	go func() {
 		t.Logf("[consumer] waiting for %v", expectedMsg)
 
-		msg, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
-			return candidate.Type == expectedMsg.Type
-		})
+		msg, err := queue.AwaitMatchingItem(
+			ctx, func(candidate testMessage) bool {
+				return candidate.Type == expectedMsg.Type
+			},
+		)
 
 		if err != nil {
 			t.Errorf("[consumer] [ERROR] timed out waiting for %v", expectedMsg)
@@ -87,14 +89,14 @@ func TestSingleProducerMultipleConsumers(t *testing.T) {
 
 	// Consumers
 	for i, expectedMsg := range testMessages {
-		i, expectedMsg := i, expectedMsg // Avoids mutating loop variable
-
 		go func() {
 			t.Logf("[consumer %d] waiting for %v", i, expectedMsg)
 
-			msg, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
-				return candidate.Type == expectedMsg.Type
-			})
+			msg, err := queue.AwaitMatchingItem(
+				ctx, func(candidate testMessage) bool {
+					return candidate.Type == expectedMsg.Type
+				},
+			)
 
 			if err != nil {
 				t.Errorf("[consumer %d] [ERROR] timed out waiting for %v", i, expectedMsg)
@@ -122,8 +124,6 @@ func TestMultipleProducersMultipleConsumers(t *testing.T) {
 
 	// Producers
 	for i, msg := range testMessages {
-		i, msg := i, msg // Avoids mutating loop variable
-
 		go func() {
 			t.Logf("[producer %d] adding %v", i, msg)
 			queue.Add(msg)
@@ -133,14 +133,14 @@ func TestMultipleProducersMultipleConsumers(t *testing.T) {
 
 	// Consumers
 	for i, expectedMsg := range testMessages {
-		i, expectedMsg := i, expectedMsg // Avoids mutating loop variable
-
 		go func() {
 			t.Logf("[consumer %d] waiting for %v", i, expectedMsg)
 
-			msg, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
-				return candidate.Type == expectedMsg.Type
-			})
+			msg, err := queue.AwaitMatchingItem(
+				ctx, func(candidate testMessage) bool {
+					return candidate.Type == expectedMsg.Type
+				},
+			)
 
 			if err != nil {
 				t.Errorf("[consumer %d] [ERROR] timed out waiting for %v", i, expectedMsg)
@@ -163,9 +163,11 @@ func TestTimeout(t *testing.T) {
 	ctx, cleanup := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cleanup()
 
-	_, err := queue.AwaitMatchingItem(ctx, func(testMessage) bool {
-		return true
-	})
+	_, err := queue.AwaitMatchingItem(
+		ctx, func(testMessage) bool {
+			return true
+		},
+	)
 
 	if err == nil {
 		t.Error("expected timeout error from AwaitMatchingItem")
@@ -179,14 +181,17 @@ func TestCancel(t *testing.T) {
 	cancelErr := errors.New("something went wrong")
 	cancel(cancelErr)
 
-	_, err := queue.AwaitMatchingItem(ctx, func(testMessage) bool {
-		return true
-	})
+	_, err := queue.AwaitMatchingItem(
+		ctx, func(testMessage) bool {
+			return true
+		},
+	)
 
 	if err == nil {
 		t.Fatal("expected error from AwaitMatchingItem with canceled context")
 	}
 
+	//nolint:errorlint  // We want to test that the error is returned unwrapped
 	if err != cancelErr {
 		t.Fatalf("expected error to match the one given to cancel function, but got: %v", err)
 	}
@@ -203,9 +208,11 @@ func TestClear(t *testing.T) {
 	ctx, cleanup := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cleanup()
 
-	_, err := queue.AwaitMatchingItem(ctx, func(candidate testMessage) bool {
-		return candidate.Type == msgType
-	})
+	_, err := queue.AwaitMatchingItem(
+		ctx, func(candidate testMessage) bool {
+			return candidate.Type == msgType
+		},
+	)
 
 	if err == nil {
 		t.Error("expected timeout error from AwaitMatchingItem")
