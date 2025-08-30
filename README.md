@@ -5,12 +5,20 @@ a given condition, and producers can add items to wake consumers.
 
 Run `go get hermannm.dev/condqueue` to add it to your project!
 
+**Docs:** [pkg.go.dev/hermannm.dev/condqueue](https://pkg.go.dev/hermannm.dev/condqueue)
+
+**Contents:**
+
+- [Usage](#usage)
+- [Developer's guide](#developers-guide)
+
 ## Usage
 
 In the example below, we have a simple message, which can either be of type success or error. A
 producer goroutine adds messages to the queue, while two consumer goroutines wait for a message type
 each.
 
+<!-- @formatter:off -->
 ```go
 import (
 	"context"
@@ -69,6 +77,7 @@ func main() {
 	wg.Wait()
 }
 ```
+<!-- @formatter:on -->
 
 This gives the following output (the order may vary due to concurrency):
 
@@ -83,3 +92,23 @@ This gives the following output (the order may vary due to concurrency):
 
 For more details on how to use `condqueue`, refer to the
 [documentation](https://pkg.go.dev/hermannm.dev/condqueue).
+
+## Developer's guide
+
+When publishing a new release:
+
+- Run tests and linter ([`golangci-lint`](https://golangci-lint.run/)):
+  ```
+  go test ./... && golangci-lint run
+  ```
+- Add an entry to `CHANGELOG.md` (with the current date)
+    - Remember to update the link section, and bump the version for the `[Unreleased]` link
+- Create commit and tag for the release (update `TAG` variable in below command):
+  ```
+  TAG=vX.Y.Z && git commit -m "Release ${TAG}" && git tag -a "${TAG}" -m "Release ${TAG}" && git log --oneline -2
+  ```
+- Push the commit and tag:
+  ```
+  git push && git push --tags
+  ```
+    - Our release workflow will then create a GitHub release with the pushed tag's changelog entry
