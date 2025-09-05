@@ -10,7 +10,7 @@ Run `go get hermannm.dev/condqueue` to add it to your project!
 **Contents:**
 
 - [Usage](#usage)
-- [Developer's guide](#developers-guide)
+- [Maintainer's guide](#maintainers-guide)
 
 ## Usage
 
@@ -93,9 +93,9 @@ This gives the following output (the order may vary due to concurrency):
 For more details on how to use `condqueue`, refer to the
 [documentation](https://pkg.go.dev/hermannm.dev/condqueue).
 
-## Developer's guide
+## Maintainer's guide
 
-When publishing a new release:
+### Publishing a new release
 
 - Run tests and linter ([`golangci-lint`](https://golangci-lint.run/)):
   ```
