@@ -378,9 +378,6 @@ linters:
         # Omit embedded fields from selector expression.
         # https://staticcheck.dev/docs/checks/#QF1008
         - -QF1008
-        # Do not pass a nil Context (we want to use nil contexts for our logging library)
-        # https://staticcheck.dev/docs/checks/#SA1012
-        - -SA1012
 
     usetesting:
       # Enable/disable `os.TempDir()` detections.
